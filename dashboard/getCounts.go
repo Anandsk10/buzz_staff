@@ -59,19 +59,53 @@ func GetNoOfVyaparSurvey(db *sql.DB, startDate string, endDate string, gfId stri
 
 		}
 	}
-	//  } else {
-	//  getActualsQuery = fmt.Sprintf("select count(id) as actual from training_participants tp where day2 = 1 and project_id in (%s) %s", strings.Trim(strings.Replace(fmt.Sprint(projectArray), " ", ",", -1), "[]"), filter)
-	// }
-	//  }
-	// } else {
-	//  getActualsQuery = fmt.Sprintf("select count(id) as noofvyaparsurvey from BuzzVyaparProgramBaseline")
-	// }
-	// }
 	err := db.QueryRow(getActualsQuery).Scan(&noofvyaparsurvey)
 	if err != nil {
 		log.Fatal(err)
 	}
 	return noofvyaparsurvey
+
+}
+func GetNoOfgreenSurvey(db *sql.DB, startDate string, endDate string, gfId string) int {
+	var getActualsQuery string
+	var noofgreensurvey int
+
+	// if len(projectArray) > 0 {
+	getActualsQuery = fmt.Sprintf("select count(id) as noofgreensurvey from GreenBaselineSurvey")
+	if startDate != "" && endDate != "" {
+		getActualsQuery = fmt.Sprintf("select count(id) as noofgreensurvey from GreenBaselineSurvey where entry_date BETWEEN '%s' AND '%s'", startDate, endDate)
+	} else {
+		if gfId != "" {
+			getActualsQuery = fmt.Sprintf("SELECT COUNT(id) as noofgreensurvey from GreenBaselineSurvey tp WHERE entry_date BETWEEN '%s' AND '%s' and gfid '%s'", startDate, endDate, gfId)
+
+		}
+	}
+	err := db.QueryRow(getActualsQuery).Scan(&noofgreensurvey)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return noofgreensurvey
+
+}
+func GetNoOfSporthiSurvey(db *sql.DB, startDate string, endDate string, gfId string) int {
+	var getActualsQuery string
+	var noofsporthisurvey int
+
+	// if len(projectArray) > 0 {
+	getActualsQuery = fmt.Sprintf("select count(id) as noofvyaparsurvey from SpoorthiBaselineQuestionnaire")
+	if startDate != "" && endDate != "" {
+		getActualsQuery = fmt.Sprintf("select count(id) as noofvyaparsurvey from SpoorthiBaselineQuestionnaire where entry_date BETWEEN '%s' AND '%s'", startDate, endDate)
+	} else {
+		if gfId != "" {
+			getActualsQuery = fmt.Sprintf("SELECT COUNT(id) as noofvyaparsurvey from SpoorthiBaselineQuestionnaire tp WHERE entry_date BETWEEN '%s' AND '%s' and gfid '%s'", startDate, endDate, gfId)
+
+		}
+	}
+	err := db.QueryRow(getActualsQuery).Scan(&noofsporthisurvey)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return noofsporthisurvey
 
 }
 
@@ -95,6 +129,26 @@ func NoofVyaparCohorts(db *sql.DB, startDate string, endDate string, project_id 
 	return noofvyaparcohorts
 
 }
+func NoofGreenCohorts(db *sql.DB, startDate string, endDate string, project_id string) int {
+	var getActualsQuery string
+	var noofgreencohorts int
+
+	if startDate != "" && endDate != "" {
+		getActualsQuery = fmt.Sprintf("select count(session_type) as noofgreencohorts from tbl_poa where type=2 and session_type=2 and date BETWEEN '%s' AND '%s'", startDate, endDate)
+	} else if project_id != "" {
+		getActualsQuery = fmt.Sprintf("SELECT COUNT(session_type) as noofgreencohorts from tbl_poa where type=2 and session_type=2 and project_id '%s'", project_id)
+
+	} else {
+		getActualsQuery = fmt.Sprintf("SELECT COUNT(session_type) as noofgreencohorts from tbl_poa where type=2 and session_type=2")
+
+	}
+	err := db.QueryRow(getActualsQuery).Scan(&noofgreencohorts)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return noofgreencohorts
+
+}
 
 func GetNoofVyaparModuleCompleted(db *sql.DB) int {
 	var getActualsQuery string
@@ -116,6 +170,51 @@ func GetNoofVyaparModuleCompleted(db *sql.DB) int {
 		log.Fatal(err)
 	}
 	return noofvyaparmodulecompleted
+
+}
+
+func GetNoofSporthiModuleCompleted(db *sql.DB) int {
+	var getActualsQuery string
+	var noofsporthimodulecompleted int
+
+	// if len(projectArray) > 0 {
+	// if startDate != "" && endDate != "" {
+	getActualsQuery = fmt.Sprintf("select count(module1=1 and module2=1 and module3=1 and module4=1 and module5=1) from SpoorthiBaselineQuestionnaire")
+	//  } else {
+	//  getActualsQuery = fmt.Sprintf("select count(id) as actual from training_participants tp where day2 = 1 and project_id in (%s) %s", strings.Trim(strings.Replace(fmt.Sprint(projectArray), " ", ",", -1), "[]"), filter)
+	// }
+	//  }
+	// } else {
+	//  getActualsQuery = fmt.Sprintf("select count(id) as noofvyaparsurvey from BuzzVyaparProgramBaseline")
+	// }
+	// }
+	err := db.QueryRow(getActualsQuery).Scan(&noofsporthimodulecompleted)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return noofsporthimodulecompleted
+
+}
+func GetNoofGreenModuleCompleted(db *sql.DB) int {
+	var getActualsQuery string
+	var noofgreenmodulecompleted int
+
+	// if len(projectArray) > 0 {
+	// if startDate != "" && endDate != "" {
+	getActualsQuery = fmt.Sprintf("select count(module1=1 and module2=1 and module3=1 and module4=1 and module5=1) from GreenBaselineSurvey")
+	//  } else {
+	//  getActualsQuery = fmt.Sprintf("select count(id) as actual from training_participants tp where day2 = 1 and project_id in (%s) %s", strings.Trim(strings.Replace(fmt.Sprint(projectArray), " ", ",", -1), "[]"), filter)
+	// }
+	//  }
+	// } else {
+	//  getActualsQuery = fmt.Sprintf("select count(id) as noofvyaparsurvey from BuzzVyaparProgramBaseline")
+	// }
+	// }
+	err := db.QueryRow(getActualsQuery).Scan(&noofgreenmodulecompleted)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return noofgreenmodulecompleted
 
 }
 
@@ -498,17 +597,17 @@ func getParticipantFilterVyaparapar(db *sql.DB, startDate string, endDate string
 func getTrainingBatches(db *sql.DB, startDate string, endDate string, projectArray []int, filter string) int {
 	//previously considering training batch count for villages.
 	/*if (count($projectArray) > 0){
-	      $tbQuery = "SELECT count(*) as tbCount from
-	                      (SELECT max(id) from tbl_poa tp where check_out is not null and `type`  = 1 and added  = 0 and project_id in (".implode(',',$projectArray).") $filter
-	                      GROUP BY tb_id ) as tb";
-	  }else{
-	      $tbQuery = "SELECT count(*) as tbCount from
-	                      (SELECT max(tp.id) from tbl_poa tp
-	                              inner join project p on p.id = tp.project_id
-	                              where check_out is not null and `type` = 1 and added = 0 and startDate >= '$startDate' and endDate <= '$endDate'
-	                      GROUP BY tb_id ) as tb ";
-	  }
-	  return mysqli_query($db,$tbQuery)->fetch_assoc()['tbCount'];*/
+		$tbQuery = "SELECT count(*) as tbCount from
+						(SELECT max(id) from tbl_poa tp where check_out is not null and `type`  = 1 and added  = 0 and project_id in (".implode(',',$projectArray).") $filter
+						GROUP BY tb_id ) as tb";
+	}else{
+		$tbQuery = "SELECT count(*) as tbCount from
+						(SELECT max(tp.id) from tbl_poa tp
+								inner join project p on p.id = tp.project_id
+								where check_out is not null and `type` = 1 and added = 0 and startDate >= '$startDate' and endDate <= '$endDate'
+						GROUP BY tb_id ) as tb ";
+	}
+	return mysqli_query($db,$tbQuery)->fetch_assoc()['tbCount'];*/
 
 	for _, proj := range projectArray {
 		//check if there are any associated project for each project
@@ -678,15 +777,15 @@ func getSummaryOfVillages(db *sql.DB, startDate, endDate string, projectArray []
 		projectIDsStr := strings.Join(projectIDs, ",")
 
 		villageQuery = fmt.Sprintf(`
-            SELECT COUNT(DISTINCT location_id) as villageCount
-            FROM tbl_poa tp
-            INNER JOIN project p ON p.id = tp.project_id 
-            WHERE check_out IS NOT NULL
-            AND primary_id != tb_id
-            AND type = 1
-            AND added = 0
-            AND project_id IN (%s)
-            %s`,
+				SELECT COUNT(DISTINCT location_id) as villageCount
+				FROM tbl_poa tp
+				INNER JOIN project p ON p.id = tp.project_id 
+				WHERE check_out IS NOT NULL
+				AND primary_id != tb_id
+				AND type = 1
+				AND added = 0
+				AND project_id IN (%s)
+				%s`,
 			projectIDsStr, filter)
 	} else {
 		var dateFilter string
@@ -697,15 +796,15 @@ func getSummaryOfVillages(db *sql.DB, startDate, endDate string, projectArray []
 		}
 
 		villageQuery = fmt.Sprintf(`
-            SELECT COUNT(DISTINCT location_id) as villageCount
-            FROM tbl_poa tp 
-            INNER JOIN project p ON p.id = tp.project_id
-            WHERE check_out IS NOT NULL
-            AND primary_id != tb_id
-            AND type = 1
-            AND added = 0
-            %s
-            %s`,
+				SELECT COUNT(DISTINCT location_id) as villageCount
+				FROM tbl_poa tp 
+				INNER JOIN project p ON p.id = tp.project_id
+				WHERE check_out IS NOT NULL
+				AND primary_id != tb_id
+				AND type = 1
+				AND added = 0
+				%s
+				%s`,
 			dateFilter, filter)
 	}
 

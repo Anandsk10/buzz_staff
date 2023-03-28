@@ -399,10 +399,10 @@ func HandleFunc() {
 				log.Fatal(err)
 			}
 			var summaryTarget, summaryActuals, summaryDay1, summaryEnrolled, summaryVillages, summaryGreen, summaryVyapar int
-
+			var projectArray []int
 			for res.Next() {
 				var obj = make(map[string]interface{})
-				var projectArray []int
+
 				var id int
 				var name string
 				var startDate, endDate string
@@ -464,46 +464,48 @@ func HandleFunc() {
 				summaryVyapar += obj["vyapar"].(int)
 				data = append(data, obj)
 			}
-			response := make(map[string]interface{})
+			json.NewEncoder(w).Encode(map[string]interface{}{"No of Vypar Cohorts": NoofVyaparCohorts(db, reqBody.StartDate, reqBody.EndDate, ""), "No Of Villages": getVillages(db, reqBody.StartDate, reqBody.EndDate, projectArray, ""), "No Of Vypar Enrolled Vypar": Vyapar(db, reqBody.StartDate, reqBody.EndDate, projectArray, "", ""), "No Of Vyapar survey": GetNoOfVyaparSurvey(db, reqBody.StartDate, reqBody.EndDate, ""), "No Of Vyapar module completed": GetNoofVyaparModuleCompleted(db), "funder": data})
 
-			response["summary_target"] = summaryTarget
-			response["summary_women"] = summaryActuals
-			tbFilter := fmt.Sprintf(" and tp.user_id = %d", reqBody.EmpID)
-			intSlice := []int{}
+			// response := make(map[string]interface{})
 
-			// loop through each element in the []interface{} slice
-			for _, v := range summaryProjectsArray {
-				// check if the element is of type int
-				if i, ok := v.(int); ok {
-					// append the int value to the []int slice
-					intSlice = append(intSlice, i)
-				}
-			}
-			response["summary_villages"] = getSummaryOfVillagesNew(db, reqBody.StartDate, reqBody.EndDate, intSlice, tbFilter)
-			response["summary_actual"] = summaryActuals
-			var day2Turnout float64
+			// response["summary_target"] = summaryTarget
+			// response["summary_women"] = summaryActuals
+			// tbFilter := fmt.Sprintf(" and tp.user_id = %d", reqBody.EmpID)
+			// intSlice := []int{}
 
-			if summaryDay1 > 0 {
-				day2Turnout = float64(summaryActuals) / float64(summaryDay1)
-				response["summary_day2"] = int(math.Round(day2Turnout * 100))
-			} else {
-				day2Turnout = 0
-				response["summary_day2"] = 0
-			}
+			// // loop through each element in the []interface{} slice
+			// for _, v := range summaryProjectsArray {
+			// 	// check if the element is of type int
+			// 	if i, ok := v.(int); ok {
+			// 		// append the int value to the []int slice
+			// 		intSlice = append(intSlice, i)
+			// 	}
+			// }
+			// response["summary_villages"] = getSummaryOfVillagesNew(db, reqBody.StartDate, reqBody.EndDate, intSlice, tbFilter)
+			// response["summary_actual"] = summaryActuals
+			// var day2Turnout float64
 
-			response["summary_enrolled"] = summaryEnrolled
-			response["summary_green"] = summaryGreen
-			response["summary_vyapar"] = summaryVyapar
-			response["data"] = data
-			response["code"] = 200
-			response["success"] = true
-			response["message"] = "Successfully"
+			// if summaryDay1 > 0 {
+			// 	day2Turnout = float64(summaryActuals) / float64(summaryDay1)
+			// 	response["summary_day2"] = int(math.Round(day2Turnout * 100))
+			// } else {
+			// 	day2Turnout = 0
+			// 	response["summary_day2"] = 0
+			// }
 
-			// jsonResponse, err := json.Marshal(response)
-			json.NewEncoder(w).Encode(map[string]interface{}{"summary": response})
-			if err != nil {
-				log.Fatal(err)
-			}
+			// response["summary_enrolled"] = summaryEnrolled
+			// response["summary_green"] = summaryGreen
+			// response["summary_vyapar"] = summaryVyapar
+			// response["data"] = data
+			// response["code"] = 200
+			// response["success"] = true
+			// response["message"] = "Successfully"
+
+			// // jsonResponse, err := json.Marshal(response)
+			// json.NewEncoder(w).Encode(map[string]interface{}{"summary": response})
+			// if err != nil {
+			// 	log.Fatal(err)
+			// }
 			// fmt.Println(string(jsonResponse))
 
 			// } else if reqBody.RoleID == 5 {
@@ -635,6 +637,7 @@ func HandleFunc() {
 			participantFilter := ""
 			var filter, filterG, filterV string
 			var isDateFilterApplied bool
+			var projectArray []int
 
 			if reqBody.ProjectID > 0 {
 				filter = fmt.Sprintf(" and tp.project_id = %d", reqBody.ProjectID)
@@ -650,34 +653,57 @@ func HandleFunc() {
 				}
 			}
 
-			circleMeet := getGFData(db, filter, 1, reqBody.EmpID)
-			villageVisit := getGFData(db, filter, 2, reqBody.EmpID)
-			beehive := getGFData(db, filter, 3, reqBody.EmpID)
-			enrolled, _ := getGfEnrolled(db, filter, reqBody.EmpID)
-			circleVisit := getGFCircle(db, filter, reqBody.EmpID)
+			// circleMeet := getGFData(db, filter, 1, reqBody.EmpID)
+			// villageVisit := getGFData(db, filter, 2, reqBody.EmpID)
+			// beehive := getGFData(db, filter, 3, reqBody.EmpID)
+			// enrolled, _ := getGfEnrolled(db, filter, reqBody.EmpID)
+			// circleVisit := getGFCircle(db, filter, reqBody.EmpID)
 
 			data := []map[string]interface{}{}
-			getProjs := fmt.Sprintf("Select project_id as id,p.projectName as name from tbl_poa tp inner join project p on p.id = tp.project_id where tp.user_id = %d %s GROUP by tp.project_id UNION SELECT tp.project_id as id,p.projectName as name from training_participants tp inner join project p on tp.project_id = p.id where enroll = 1 and gelathi_id = %d %s", reqBody.EmpID, filter, reqBody.EmpID, filter)
+			getProjs := "SELECT project_id as id, p.projectName as name FROM tbl_poa tp " +
+				"INNER JOIN project p ON p.id = tp.project_id " +
+				"WHERE tp.user_id = " + strconv.Itoa(reqBody.EmpID) + " " + filter + " GROUP BY tp.project_id " +
+				"UNION " +
+				"SELECT tp.project_id as id, p.projectName as name FROM training_participants tp " +
+				"INNER JOIN project p ON tp.project_id = p.id " +
+				"WHERE enroll = 1 AND gelathi_id = " + strconv.Itoa(reqBody.EmpID) + " " + filter
 
 			if reqBody.ProjectID > 0 {
-				getProjs = fmt.Sprintf("Select project_id as id,p.projectName as name from tbl_poa tp inner join project p on p.id = tp.project_id where tp.project_id = %d and tp.user_id = %d GROUP by tp.project_id UNION SELECT tp.project_id as id,p.projectName as name from training_participants tp inner join project p on tp.project_id = p.id where enroll = 1 and gelathi_id = %d and tp.project_id = %d", reqBody.ProjectID, reqBody.EmpID, reqBody.EmpID, reqBody.ProjectID)
+				getProjs = "SELECT project_id as id, p.projectName as name FROM tbl_poa tp " +
+					"INNER JOIN project p ON p.id = tp.project_id " +
+					"WHERE tp.project_id = " + strconv.Itoa(reqBody.ProjectID) + " AND tp.user_id = " + strconv.Itoa(reqBody.EmpID) + " GROUP BY tp.project_id " +
+					"UNION " +
+					"SELECT tp.project_id as id, p.projectName as name FROM training_participants tp " +
+					"INNER JOIN project p ON tp.project_id = p.id " +
+					"WHERE enroll = 1 AND gelathi_id = " + strconv.Itoa(reqBody.EmpID) + " AND tp.project_id = " + strconv.Itoa(reqBody.ProjectID)
 			}
+
+			// getProjs := fmt.Sprintf("Select project_id as id,p.projectName as name from tbl_poa tp inner join project p on p.id = tp.project_id where tp.user_id = %d %s GROUP by tp.project_id UNION SELECT tp.project_id as id,p.projectName as name from training_participants tp inner join project p on tp.project_id = p.id where enroll = 1 and gelathi_id = %d %s", reqBody.EmpID, filter, reqBody.EmpID, filter)
+
+			// if reqBody.ProjectID > 0 {
+			// 	getProjs = fmt.Sprintf("Select project_id as id,p.projectName as name from tbl_poa tp inner join project p on p.id = tp.project_id where tp.project_id = %d and tp.user_id = %d GROUP by tp.project_id UNION SELECT tp.project_id as id,p.projectName as name from training_participants tp inner join project p on tp.project_id = p.id where enroll = 1 and gelathi_id = %d and tp.project_id = %d", reqBody.ProjectID, reqBody.EmpID,  reqBody.ProjectID)
+			// }
+			// Fetch projects list
 			projectsList, err := db.Query(getProjs)
 			if err != nil {
-				fmt.Println(err)
+				log.Fatal(err)
 			}
+			defer projectsList.Close()
+			summaryGreen := 0
+			summaryVyapar := 0
+
+			// Loop through each project and fetch required data
 			for projectsList.Next() {
+				var obj = make(map[string]interface{})
 				var id int
 				var name string
+
 				err := projectsList.Scan(&id, &name)
 				if err != nil {
-					panic(err)
+					log.Fatal(err)
 				}
 
-				obj := make(map[string]interface{})
 				obj["name"] = name
-				// var villageProjvisit *int
-
 				prjFilter := fmt.Sprintf(" and p.id = %d", id)
 				circleProjMeet := getGFData(db, prjFilter, 1, reqBody.EmpID)
 				obj["circle_meet"] = circleProjMeet
@@ -687,34 +713,29 @@ func HandleFunc() {
 				beehiveProj := getGFData(db, prjFilter, 3, reqBody.EmpID)
 				obj["beehive"] = beehiveProj
 				projEnrolled, _ := getGfEnrolled(db, prjFilter, reqBody.EmpID)
-				bool1, _ := strconv.ParseBool(participantFilter)
+				b, err := strconv.ParseBool(participantFilter)
 
-				if bool1 {
+				if b {
 					projEnrolled = getParticipantFilterGfEnrolled(db, prjFilter, reqBody.EmpID, reqBody.StartDate, reqBody.EndDate)
 				}
 
-				obj = make(map[string]interface{})
 				obj["enroll"] = projEnrolled
-
-				var projectArray []string
-				str := strconv.Itoa(reqBody.EmpID)
-				empIDs := strings.Split(str, ",")
-				empIDsStr := "'" + strings.Join(empIDs, "','") + "'"
-				projectResult, err := db.Query(fmt.Sprintf("SELECT GROUP_CONCAT(DISTINCT prj.id) as ids from project_emps em_pr left join project prj on em_pr.project_id = prj.id where emp_id IN (%s)", empIDsStr))
-
-				// projectResult, err := db.Query(fmt.Sprintf("SELECT GROUP_CONCAT(DISTINCT prj.id) as ids from project_emps em_pr left join project prj on em_pr.project_id = prj.id where emp_id IN (%s)", reqBody.EmpID))
+				projectResult, err := db.Query(fmt.Sprintf("SELECT GROUP_CONCAT(DISTINCT prj.id) as ids from project_emps em_pr left join project prj on em_pr.project_id = prj.id where emp_id IN (%d)", reqBody.EmpID))
 				if err != nil {
-					// handle error
+					log.Fatal(err)
 				}
 				defer projectResult.Close()
+
+				var projectArray []string
 				for projectResult.Next() {
-					var prjIDs string
-					err := projectResult.Scan(&prjIDs)
+					var ids string
+					err := projectResult.Scan(&ids)
 					if err != nil {
-						// handle error
+						log.Fatal(err)
 					}
-					projectArray = append(projectArray, prjIDs)
+					projectArray = strings.Split(ids, ",")
 				}
+
 				intSlice := make([]int, len(projectArray))
 
 				for i, str := range projectArray {
@@ -727,38 +748,109 @@ func HandleFunc() {
 
 				obj["greenMotivators"] = greenMotivators(db, reqBody.StartDate, reqBody.EndDate, intSlice, "", filterG)
 				obj["vyapar"] = Vyapar(db, reqBody.StartDate, reqBody.EndDate, intSlice, "", filterV)
-				summaryGreen := 0
-				summaryVyapar := 0
-
 				summaryGreen += obj["greenMotivators"].(int)
 				summaryVyapar += obj["vyapar"].(int)
-
 				data = append(data, obj)
-				fmt.Println(data)
-
-				response := make(map[string]interface{})
-				response["summary_circle_meet"] = circleMeet
-				response["summary_circles"] = circleVisit
-				response["summary_villagevisit"] = villageVisit
-				response["summary_beehive"] = beehive
-				response["summary_enroll"] = enrolled
-				response["summary_green"] = summaryGreen
-				response["summary_vyapar"] = summaryVyapar
-				response["data"] = data
-				response["code"] = 200
-				response["success"] = true
-				response["message"] = "Successfully"
-
-				js, err := json.Marshal(response)
-				fmt.Println(response)
-				if err != nil {
-					// handle error
-				}
-				w.Header().Set("Content-Type", "application/json")
-				w.WriteHeader(http.StatusOK)
-				w.Write(js)
-				return
 			}
+			json.NewEncoder(w).Encode(map[string]interface{}{"No of Vypar Cohorts": NoofVyaparCohorts(db, reqBody.StartDate, reqBody.EndDate, ""), "No Of Villages": getVillages(db, reqBody.StartDate, reqBody.EndDate, projectArray, ""), "No Of Vypar Enrolled Vypar": Vyapar(db, reqBody.StartDate, reqBody.EndDate, projectArray, "", ""), "No Of Vyapar survey": GetNoOfVyaparSurvey(db, reqBody.StartDate, reqBody.EndDate, ""), "No Of Vyapar module completed": GetNoofVyaparModuleCompleted(db), "funder": data})
+
+			if err := projectsList.Err(); err != nil {
+				log.Fatal(err)
+			}
+
+			// summaryGreen := 0
+			// summaryVyapar := 0
+			// for projectsList.Next() {
+			// 	var id int
+			// 	var name string
+			// 	err := projectsList.Scan(&id, &name)
+			// 	if err != nil {
+			// 		panic(err)
+			// 	}
+
+			// 	obj := make(map[string]interface{})
+			// 	obj["name"] = name
+			// 	// var villageProjvisit *int
+
+			// 	prjFilter := fmt.Sprintf(" and p.id = %d", id)
+			// 	circleProjMeet := getGFData(db, prjFilter, 1, reqBody.EmpID)
+			// 	obj["circle_meet"] = circleProjMeet
+			// 	obj["circles"] = getGFCircle(db, prjFilter, reqBody.EmpID)
+			// 	villageProjvisit := getGFData(db, prjFilter, 2, reqBody.EmpID)
+			// 	obj["villagevisit"] = villageProjvisit
+			// 	beehiveProj := getGFData(db, prjFilter, 3, reqBody.EmpID)
+			// 	obj["beehive"] = beehiveProj
+			// 	projEnrolled, _ := getGfEnrolled(db, prjFilter, reqBody.EmpID)
+			// 	bool1, _ := strconv.ParseBool(participantFilter)
+
+			// 	if bool1 {
+			// 		projEnrolled = getParticipantFilterGfEnrolled(db, prjFilter, reqBody.EmpID, reqBody.StartDate, reqBody.EndDate)
+			// 	}
+
+			// 	obj = make(map[string]interface{})
+			// 	obj["enroll"] = projEnrolled
+
+			// 	var projectArray []string
+			// 	str := strconv.Itoa(reqBody.EmpID)
+			// 	empIDs := strings.Split(str, ",")
+			// 	empIDsStr := "'" + strings.Join(empIDs, "','") + "'"
+			// 	projectResult, err := db.Query(fmt.Sprintf("SELECT GROUP_CONCAT(DISTINCT prj.id) as ids from project_emps em_pr left join project prj on em_pr.project_id = prj.id where emp_id IN (%s)", empIDsStr))
+
+			// 	// projectResult, err := db.Query(fmt.Sprintf("SELECT GROUP_CONCAT(DISTINCT prj.id) as ids from project_emps em_pr left join project prj on em_pr.project_id = prj.id where emp_id IN (%s)", reqBody.EmpID))
+			// 	if err != nil {
+			// 		// handle error
+			// 	}
+			// 	defer projectResult.Close()
+			// 	for projectResult.Next() {
+			// 		var prjIDs string
+			// 		err := projectResult.Scan(&prjIDs)
+			// 		if err != nil {
+			// 			// handle error
+			// 		}
+			// 		projectArray = append(projectArray, prjIDs)
+			// 	}
+			// 	intSlice := make([]int, len(projectArray))
+
+			// 	for i, str := range projectArray {
+			// 		num, err := strconv.Atoi(str)
+			// 		if err != nil {
+			// 			panic(err)
+			// 		}
+			// 		intSlice[i] = num
+			// 	}
+
+			// 	obj["greenMotivators"] = greenMotivators(db, reqBody.StartDate, reqBody.EndDate, intSlice, "", filterG)
+			// 	obj["vyapar"] = Vyapar(db, reqBody.StartDate, reqBody.EndDate, intSlice, "", filterV)
+
+			// 	summaryGreen += obj["greenMotivators"].(int)
+			// 	summaryVyapar += obj["vyapar"].(int)
+
+			// 	data = append(data, obj)
+			// }
+			// fmt.Println(data)
+
+			// response := make(map[string]interface{})
+			// response["summary_circle_meet"] = circleMeet
+			// response["summary_circles"] = circleVisit
+			// response["summary_villagevisit"] = villageVisit
+			// response["summary_beehive"] = beehive
+			// response["summary_enroll"] = enrolled
+			// response["summary_green"] = summaryGreen
+			// response["summary_vyapar"] = summaryVyapar
+			// response["data"] = data
+			// response["code"] = 200
+			// response["success"] = true
+			// response["message"] = "Successfully"
+
+			// js, err := json.Marshal(response)
+			// fmt.Println(response)
+			// if err != nil {
+			// 	// handle error
+			// }
+			// w.Header().Set("Content-Type", "application/json")
+			// w.WriteHeader(http.StatusOK)
+			// w.Write(js)
+			// return
 
 			// } else if reqBody.RoleID == 13 {
 			// 	filter := ""
@@ -1528,10 +1620,10 @@ func HandleFunc() {
 				log.Fatal(err)
 			}
 			var summaryTarget, summaryActuals, summaryDay1, summaryEnrolled, summaryVillages, summaryGreen, summaryVyapar int
-
+			var projectArray []int
 			for res.Next() {
 				var obj = make(map[string]interface{})
-				var projectArray []int
+
 				var id int
 				var name string
 				var startDate, endDate string
@@ -1593,46 +1685,7 @@ func HandleFunc() {
 				summaryVyapar += obj["vyapar"].(int)
 				data = append(data, obj)
 			}
-			response := make(map[string]interface{})
-
-			response["summary_target"] = summaryTarget
-			response["summary_women"] = summaryActuals
-			tbFilter := fmt.Sprintf(" and tp.user_id = %d", reqBody.EmpID)
-			intSlice := []int{}
-
-			// loop through each element in the []interface{} slice
-			for _, v := range summaryProjectsArray {
-				// check if the element is of type int
-				if i, ok := v.(int); ok {
-					// append the int value to the []int slice
-					intSlice = append(intSlice, i)
-				}
-			}
-			response["summary_villages"] = getSummaryOfVillagesNew(db, reqBody.StartDate, reqBody.EndDate, intSlice, tbFilter)
-			response["summary_actual"] = summaryActuals
-			var day2Turnout float64
-
-			if summaryDay1 > 0 {
-				day2Turnout = float64(summaryActuals) / float64(summaryDay1)
-				response["summary_day2"] = int(math.Round(day2Turnout * 100))
-			} else {
-				day2Turnout = 0
-				response["summary_day2"] = 0
-			}
-
-			response["summary_enrolled"] = summaryEnrolled
-			response["summary_green"] = summaryGreen
-			response["summary_vyapar"] = summaryVyapar
-			response["data"] = data
-			response["code"] = 200
-			response["success"] = true
-			response["message"] = "Successfully"
-
-			// jsonResponse, err := json.Marshal(response)
-			json.NewEncoder(w).Encode(map[string]interface{}{"summary": response})
-			if err != nil {
-				log.Fatal(err)
-			}
+			json.NewEncoder(w).Encode(map[string]interface{}{"No of Green Cohorts": NoofGreenCohorts(db, reqBody.StartDate, reqBody.EndDate, ""), "No Of Villages": getVillages(db, reqBody.StartDate, reqBody.EndDate, projectArray, ""), "No Of Green Enrolled Vypar": greenMotivators(db, reqBody.StartDate, reqBody.EndDate, projectArray, "", ""), "No Of Green survey": GetNoOfgreenSurvey(db, reqBody.StartDate, reqBody.EndDate, ""), "No Of Vyapar module completed": GetNoofGreenModuleCompleted(db), "funder": data})
 
 			// return map[string]interface{}{"data": data, "summary": summary}
 
@@ -1640,6 +1693,7 @@ func HandleFunc() {
 			participantFilter := ""
 			var filter, filterG, filterV string
 			var isDateFilterApplied bool
+			var projectArray []int
 
 			if reqBody.ProjectID > 0 {
 				filter = fmt.Sprintf(" and tp.project_id = %d", reqBody.ProjectID)
@@ -1655,34 +1709,57 @@ func HandleFunc() {
 				}
 			}
 
-			circleMeet := getGFData(db, filter, 1, reqBody.EmpID)
-			villageVisit := getGFData(db, filter, 2, reqBody.EmpID)
-			beehive := getGFData(db, filter, 3, reqBody.EmpID)
-			enrolled, _ := getGfEnrolled(db, filter, reqBody.EmpID)
-			circleVisit := getGFCircle(db, filter, reqBody.EmpID)
+			// circleMeet := getGFData(db, filter, 1, reqBody.EmpID)
+			// villageVisit := getGFData(db, filter, 2, reqBody.EmpID)
+			// beehive := getGFData(db, filter, 3, reqBody.EmpID)
+			// enrolled, _ := getGfEnrolled(db, filter, reqBody.EmpID)
+			// circleVisit := getGFCircle(db, filter, reqBody.EmpID)
 
 			data := []map[string]interface{}{}
-			getProjs := fmt.Sprintf("Select project_id as id,p.projectName as name from tbl_poa tp inner join project p on p.id = tp.project_id where tp.user_id = %d %s GROUP by tp.project_id UNION SELECT tp.project_id as id,p.projectName as name from training_participants tp inner join project p on tp.project_id = p.id where enroll = 1 and gelathi_id = %d %s", reqBody.EmpID, filter, reqBody.EmpID, filter)
+			getProjs := "SELECT project_id as id, p.projectName as name FROM tbl_poa tp " +
+				"INNER JOIN project p ON p.id = tp.project_id " +
+				"WHERE tp.user_id = " + strconv.Itoa(reqBody.EmpID) + " " + filter + " GROUP BY tp.project_id " +
+				"UNION " +
+				"SELECT tp.project_id as id, p.projectName as name FROM training_participants tp " +
+				"INNER JOIN project p ON tp.project_id = p.id " +
+				"WHERE enroll = 1 AND gelathi_id = " + strconv.Itoa(reqBody.EmpID) + " " + filter
 
 			if reqBody.ProjectID > 0 {
-				getProjs = fmt.Sprintf("Select project_id as id,p.projectName as name from tbl_poa tp inner join project p on p.id = tp.project_id where tp.project_id = %d and tp.user_id = %d GROUP by tp.project_id UNION SELECT tp.project_id as id,p.projectName as name from training_participants tp inner join project p on tp.project_id = p.id where enroll = 1 and gelathi_id = %d and tp.project_id = %d", reqBody.ProjectID, reqBody.EmpID, reqBody.EmpID, reqBody.ProjectID)
+				getProjs = "SELECT project_id as id, p.projectName as name FROM tbl_poa tp " +
+					"INNER JOIN project p ON p.id = tp.project_id " +
+					"WHERE tp.project_id = " + strconv.Itoa(reqBody.ProjectID) + " AND tp.user_id = " + strconv.Itoa(reqBody.EmpID) + " GROUP BY tp.project_id " +
+					"UNION " +
+					"SELECT tp.project_id as id, p.projectName as name FROM training_participants tp " +
+					"INNER JOIN project p ON tp.project_id = p.id " +
+					"WHERE enroll = 1 AND gelathi_id = " + strconv.Itoa(reqBody.EmpID) + " AND tp.project_id = " + strconv.Itoa(reqBody.ProjectID)
 			}
+
+			// getProjs := fmt.Sprintf("Select project_id as id,p.projectName as name from tbl_poa tp inner join project p on p.id = tp.project_id where tp.user_id = %d %s GROUP by tp.project_id UNION SELECT tp.project_id as id,p.projectName as name from training_participants tp inner join project p on tp.project_id = p.id where enroll = 1 and gelathi_id = %d %s", reqBody.EmpID, filter, reqBody.EmpID, filter)
+
+			// if reqBody.ProjectID > 0 {
+			// 	getProjs = fmt.Sprintf("Select project_id as id,p.projectName as name from tbl_poa tp inner join project p on p.id = tp.project_id where tp.project_id = %d and tp.user_id = %d GROUP by tp.project_id UNION SELECT tp.project_id as id,p.projectName as name from training_participants tp inner join project p on tp.project_id = p.id where enroll = 1 and gelathi_id = %d and tp.project_id = %d", reqBody.ProjectID, reqBody.EmpID,  reqBody.ProjectID)
+			// }
+			// Fetch projects list
 			projectsList, err := db.Query(getProjs)
 			if err != nil {
-				fmt.Println(err)
+				log.Fatal(err)
 			}
+			defer projectsList.Close()
+			summaryGreen := 0
+			summaryVyapar := 0
+
+			// Loop through each project and fetch required data
 			for projectsList.Next() {
+				var obj = make(map[string]interface{})
 				var id int
 				var name string
+
 				err := projectsList.Scan(&id, &name)
 				if err != nil {
-					panic(err)
+					log.Fatal(err)
 				}
 
-				obj := make(map[string]interface{})
 				obj["name"] = name
-				// var villageProjvisit *int
-
 				prjFilter := fmt.Sprintf(" and p.id = %d", id)
 				circleProjMeet := getGFData(db, prjFilter, 1, reqBody.EmpID)
 				obj["circle_meet"] = circleProjMeet
@@ -1692,34 +1769,29 @@ func HandleFunc() {
 				beehiveProj := getGFData(db, prjFilter, 3, reqBody.EmpID)
 				obj["beehive"] = beehiveProj
 				projEnrolled, _ := getGfEnrolled(db, prjFilter, reqBody.EmpID)
-				bool1, _ := strconv.ParseBool(participantFilter)
+				b, err := strconv.ParseBool(participantFilter)
 
-				if bool1 {
+				if b {
 					projEnrolled = getParticipantFilterGfEnrolled(db, prjFilter, reqBody.EmpID, reqBody.StartDate, reqBody.EndDate)
 				}
 
-				obj = make(map[string]interface{})
 				obj["enroll"] = projEnrolled
-
-				var projectArray []string
-				str := strconv.Itoa(reqBody.EmpID)
-				empIDs := strings.Split(str, ",")
-				empIDsStr := "'" + strings.Join(empIDs, "','") + "'"
-				projectResult, err := db.Query(fmt.Sprintf("SELECT GROUP_CONCAT(DISTINCT prj.id) as ids from project_emps em_pr left join project prj on em_pr.project_id = prj.id where emp_id IN (%s)", empIDsStr))
-
-				// projectResult, err := db.Query(fmt.Sprintf("SELECT GROUP_CONCAT(DISTINCT prj.id) as ids from project_emps em_pr left join project prj on em_pr.project_id = prj.id where emp_id IN (%s)", reqBody.EmpID))
+				projectResult, err := db.Query(fmt.Sprintf("SELECT GROUP_CONCAT(DISTINCT prj.id) as ids from project_emps em_pr left join project prj on em_pr.project_id = prj.id where emp_id IN (%d)", reqBody.EmpID))
 				if err != nil {
-					// handle error
+					log.Fatal(err)
 				}
 				defer projectResult.Close()
+
+				var projectArray []string
 				for projectResult.Next() {
-					var prjIDs string
-					err := projectResult.Scan(&prjIDs)
+					var ids string
+					err := projectResult.Scan(&ids)
 					if err != nil {
-						// handle error
+						log.Fatal(err)
 					}
-					projectArray = append(projectArray, prjIDs)
+					projectArray = strings.Split(ids, ",")
 				}
+
 				intSlice := make([]int, len(projectArray))
 
 				for i, str := range projectArray {
@@ -1732,37 +1804,14 @@ func HandleFunc() {
 
 				obj["greenMotivators"] = greenMotivators(db, reqBody.StartDate, reqBody.EndDate, intSlice, "", filterG)
 				obj["vyapar"] = Vyapar(db, reqBody.StartDate, reqBody.EndDate, intSlice, "", filterV)
-				summaryGreen := 0
-				summaryVyapar := 0
-
 				summaryGreen += obj["greenMotivators"].(int)
 				summaryVyapar += obj["vyapar"].(int)
-
 				data = append(data, obj)
-				fmt.Println(data)
+			}
+			json.NewEncoder(w).Encode(map[string]interface{}{"No of Green Cohorts": NoofGreenCohorts(db, reqBody.StartDate, reqBody.EndDate, ""), "No Of Villages": getVillages(db, reqBody.StartDate, reqBody.EndDate, projectArray, ""), "No Of Green Enrolled Vypar": greenMotivators(db, reqBody.StartDate, reqBody.EndDate, projectArray, "", ""), "No Of Green survey": GetNoOfgreenSurvey(db, reqBody.StartDate, reqBody.EndDate, ""), "No Of Vyapar module completed": GetNoofGreenModuleCompleted(db), "funder": data})
 
-				response := make(map[string]interface{})
-				response["summary_circle_meet"] = circleMeet
-				response["summary_circles"] = circleVisit
-				response["summary_villagevisit"] = villageVisit
-				response["summary_beehive"] = beehive
-				response["summary_enroll"] = enrolled
-				response["summary_green"] = summaryGreen
-				response["summary_vyapar"] = summaryVyapar
-				response["data"] = data
-				response["code"] = 200
-				response["success"] = true
-				response["message"] = "Successfully"
-
-				js, err := json.Marshal(response)
-				fmt.Println(response)
-				if err != nil {
-					// handle error
-				}
-				w.Header().Set("Content-Type", "application/json")
-				w.WriteHeader(http.StatusOK)
-				w.Write(js)
-				return
+			if err := projectsList.Err(); err != nil {
+				log.Fatal(err)
 			}
 
 		} else if reqBody.RoleID == 13 {
@@ -2340,6 +2389,7 @@ func HandleFunc() {
 		} else if reqBody.RoleID == 5 {
 			var dateFilter string
 			var isDateFilterApplied bool
+			var day2 int
 
 			if isDateFilterApplied {
 				dateFilter = " and p.startDate >= '" + reqBody.StartDate + "' and p.endDate <= '" + reqBody.EndDate + "'"
@@ -2371,10 +2421,10 @@ func HandleFunc() {
 				log.Fatal(err)
 			}
 			var summaryTarget, summaryActuals, summaryDay1, summaryEnrolled, summaryVillages, summaryGreen, summaryVyapar int
-
+			var projectArray []int
 			for res.Next() {
 				var obj = make(map[string]interface{})
-				var projectArray []int
+
 				var id int
 				var name string
 				var startDate, endDate string
@@ -2435,47 +2485,20 @@ func HandleFunc() {
 				summaryGreen += obj["greenMotivators"].(int)
 				summaryVyapar += obj["vyapar"].(int)
 				data = append(data, obj)
-			}
-			response := make(map[string]interface{})
+				day1Count = getDay1Count(db, "", "", projectArray, "")
+				summaryDay1 := 0
 
-			response["summary_target"] = summaryTarget
-			response["summary_women"] = summaryActuals
-			tbFilter := fmt.Sprintf(" and tp.user_id = %d", reqBody.EmpID)
-			intSlice := []int{}
-
-			// loop through each element in the []interface{} slice
-			for _, v := range summaryProjectsArray {
-				// check if the element is of type int
-				if i, ok := v.(int); ok {
-					// append the int value to the []int slice
-					intSlice = append(intSlice, i)
+				summaryDay1 += day1Count
+				if day1Count > 0 {
+					actual := getActual(db, reqBody.StartDate, reqBody.EndDate, projectArray, "")
+					day2Turnout := float64(actual) / float64(day1Count)
+					day2 = int(day2Turnout * 100)
+				} else {
+					day2 = 0
 				}
-			}
-			response["summary_villages"] = getSummaryOfVillagesNew(db, reqBody.StartDate, reqBody.EndDate, intSlice, tbFilter)
-			response["summary_actual"] = summaryActuals
-			var day2Turnout float64
 
-			if summaryDay1 > 0 {
-				day2Turnout = float64(summaryActuals) / float64(summaryDay1)
-				response["summary_day2"] = int(math.Round(day2Turnout * 100))
-			} else {
-				day2Turnout = 0
-				response["summary_day2"] = 0
 			}
-
-			response["summary_enrolled"] = summaryEnrolled
-			response["summary_green"] = summaryGreen
-			response["summary_vyapar"] = summaryVyapar
-			response["data"] = data
-			response["code"] = 200
-			response["success"] = true
-			response["message"] = "Successfully"
-
-			// jsonResponse, err := json.Marshal(response)
-			json.NewEncoder(w).Encode(map[string]interface{}{"summary": response})
-			if err != nil {
-				log.Fatal(err)
-			}
+			json.NewEncoder(w).Encode(map[string]interface{}{"Target": getTarget(db, reqBody.StartDate, reqBody.EndDate, projectArray), "No Of Villages": getVillages(db, reqBody.StartDate, reqBody.EndDate, projectArray, ""), "Actual": getActual(db, reqBody.StartDate, reqBody.EndDate, projectArray, ""), "No Of Batches": getTrainingBatches(db, reqBody.StartDate, reqBody.EndDate, projectArray, ""), "No Of self shakthi survey": GetNoofGreenModuleCompleted(db), "2nd Day turnout %": day2, "funder": data})
 
 			// return map[string]interface{}{"data": data, "summary": summary}
 
@@ -2483,6 +2506,8 @@ func HandleFunc() {
 			participantFilter := ""
 			var filter, filterG, filterV string
 			var isDateFilterApplied bool
+			var projectArray []int
+			var day2 int
 
 			if reqBody.ProjectID > 0 {
 				filter = fmt.Sprintf(" and tp.project_id = %d", reqBody.ProjectID)
@@ -2498,34 +2523,57 @@ func HandleFunc() {
 				}
 			}
 
-			circleMeet := getGFData(db, filter, 1, reqBody.EmpID)
-			villageVisit := getGFData(db, filter, 2, reqBody.EmpID)
-			beehive := getGFData(db, filter, 3, reqBody.EmpID)
-			enrolled, _ := getGfEnrolled(db, filter, reqBody.EmpID)
-			circleVisit := getGFCircle(db, filter, reqBody.EmpID)
+			// circleMeet := getGFData(db, filter, 1, reqBody.EmpID)
+			// villageVisit := getGFData(db, filter, 2, reqBody.EmpID)
+			// beehive := getGFData(db, filter, 3, reqBody.EmpID)
+			// enrolled, _ := getGfEnrolled(db, filter, reqBody.EmpID)
+			// circleVisit := getGFCircle(db, filter, reqBody.EmpID)
 
 			data := []map[string]interface{}{}
-			getProjs := fmt.Sprintf("Select project_id as id,p.projectName as name from tbl_poa tp inner join project p on p.id = tp.project_id where tp.user_id = %d %s GROUP by tp.project_id UNION SELECT tp.project_id as id,p.projectName as name from training_participants tp inner join project p on tp.project_id = p.id where enroll = 1 and gelathi_id = %d %s", reqBody.EmpID, filter, reqBody.EmpID, filter)
+			getProjs := "SELECT project_id as id, p.projectName as name FROM tbl_poa tp " +
+				"INNER JOIN project p ON p.id = tp.project_id " +
+				"WHERE tp.user_id = " + strconv.Itoa(reqBody.EmpID) + " " + filter + " GROUP BY tp.project_id " +
+				"UNION " +
+				"SELECT tp.project_id as id, p.projectName as name FROM training_participants tp " +
+				"INNER JOIN project p ON tp.project_id = p.id " +
+				"WHERE enroll = 1 AND gelathi_id = " + strconv.Itoa(reqBody.EmpID) + " " + filter
 
 			if reqBody.ProjectID > 0 {
-				getProjs = fmt.Sprintf("Select project_id as id,p.projectName as name from tbl_poa tp inner join project p on p.id = tp.project_id where tp.project_id = %d and tp.user_id = %d GROUP by tp.project_id UNION SELECT tp.project_id as id,p.projectName as name from training_participants tp inner join project p on tp.project_id = p.id where enroll = 1 and gelathi_id = %d and tp.project_id = %d", reqBody.ProjectID, reqBody.EmpID, reqBody.EmpID, reqBody.ProjectID)
+				getProjs = "SELECT project_id as id, p.projectName as name FROM tbl_poa tp " +
+					"INNER JOIN project p ON p.id = tp.project_id " +
+					"WHERE tp.project_id = " + strconv.Itoa(reqBody.ProjectID) + " AND tp.user_id = " + strconv.Itoa(reqBody.EmpID) + " GROUP BY tp.project_id " +
+					"UNION " +
+					"SELECT tp.project_id as id, p.projectName as name FROM training_participants tp " +
+					"INNER JOIN project p ON tp.project_id = p.id " +
+					"WHERE enroll = 1 AND gelathi_id = " + strconv.Itoa(reqBody.EmpID) + " AND tp.project_id = " + strconv.Itoa(reqBody.ProjectID)
 			}
+
+			// getProjs := fmt.Sprintf("Select project_id as id,p.projectName as name from tbl_poa tp inner join project p on p.id = tp.project_id where tp.user_id = %d %s GROUP by tp.project_id UNION SELECT tp.project_id as id,p.projectName as name from training_participants tp inner join project p on tp.project_id = p.id where enroll = 1 and gelathi_id = %d %s", reqBody.EmpID, filter, reqBody.EmpID, filter)
+
+			// if reqBody.ProjectID > 0 {
+			// 	getProjs = fmt.Sprintf("Select project_id as id,p.projectName as name from tbl_poa tp inner join project p on p.id = tp.project_id where tp.project_id = %d and tp.user_id = %d GROUP by tp.project_id UNION SELECT tp.project_id as id,p.projectName as name from training_participants tp inner join project p on tp.project_id = p.id where enroll = 1 and gelathi_id = %d and tp.project_id = %d", reqBody.ProjectID, reqBody.EmpID,  reqBody.ProjectID)
+			// }
+			// Fetch projects list
 			projectsList, err := db.Query(getProjs)
 			if err != nil {
-				fmt.Println(err)
+				log.Fatal(err)
 			}
+			defer projectsList.Close()
+			summaryGreen := 0
+			summaryVyapar := 0
+
+			// Loop through each project and fetch required data
 			for projectsList.Next() {
+				var obj = make(map[string]interface{})
 				var id int
 				var name string
+
 				err := projectsList.Scan(&id, &name)
 				if err != nil {
-					panic(err)
+					log.Fatal(err)
 				}
 
-				obj := make(map[string]interface{})
 				obj["name"] = name
-				// var villageProjvisit *int
-
 				prjFilter := fmt.Sprintf(" and p.id = %d", id)
 				circleProjMeet := getGFData(db, prjFilter, 1, reqBody.EmpID)
 				obj["circle_meet"] = circleProjMeet
@@ -2535,34 +2583,29 @@ func HandleFunc() {
 				beehiveProj := getGFData(db, prjFilter, 3, reqBody.EmpID)
 				obj["beehive"] = beehiveProj
 				projEnrolled, _ := getGfEnrolled(db, prjFilter, reqBody.EmpID)
-				bool1, _ := strconv.ParseBool(participantFilter)
+				b, err := strconv.ParseBool(participantFilter)
 
-				if bool1 {
+				if b {
 					projEnrolled = getParticipantFilterGfEnrolled(db, prjFilter, reqBody.EmpID, reqBody.StartDate, reqBody.EndDate)
 				}
 
-				obj = make(map[string]interface{})
 				obj["enroll"] = projEnrolled
-
-				var projectArray []string
-				str := strconv.Itoa(reqBody.EmpID)
-				empIDs := strings.Split(str, ",")
-				empIDsStr := "'" + strings.Join(empIDs, "','") + "'"
-				projectResult, err := db.Query(fmt.Sprintf("SELECT GROUP_CONCAT(DISTINCT prj.id) as ids from project_emps em_pr left join project prj on em_pr.project_id = prj.id where emp_id IN (%s)", empIDsStr))
-
-				// projectResult, err := db.Query(fmt.Sprintf("SELECT GROUP_CONCAT(DISTINCT prj.id) as ids from project_emps em_pr left join project prj on em_pr.project_id = prj.id where emp_id IN (%s)", reqBody.EmpID))
+				projectResult, err := db.Query(fmt.Sprintf("SELECT GROUP_CONCAT(DISTINCT prj.id) as ids from project_emps em_pr left join project prj on em_pr.project_id = prj.id where emp_id IN (%d)", reqBody.EmpID))
 				if err != nil {
-					// handle error
+					log.Fatal(err)
 				}
 				defer projectResult.Close()
+
+				var projectArray []string
 				for projectResult.Next() {
-					var prjIDs string
-					err := projectResult.Scan(&prjIDs)
+					var ids string
+					err := projectResult.Scan(&ids)
 					if err != nil {
-						// handle error
+						log.Fatal(err)
 					}
-					projectArray = append(projectArray, prjIDs)
+					projectArray = strings.Split(ids, ",")
 				}
+
 				intSlice := make([]int, len(projectArray))
 
 				for i, str := range projectArray {
@@ -2575,37 +2618,25 @@ func HandleFunc() {
 
 				obj["greenMotivators"] = greenMotivators(db, reqBody.StartDate, reqBody.EndDate, intSlice, "", filterG)
 				obj["vyapar"] = Vyapar(db, reqBody.StartDate, reqBody.EndDate, intSlice, "", filterV)
-				summaryGreen := 0
-				summaryVyapar := 0
-
 				summaryGreen += obj["greenMotivators"].(int)
 				summaryVyapar += obj["vyapar"].(int)
-
 				data = append(data, obj)
-				fmt.Println(data)
+				day1Count := getDay1Count(db, "", "", intSlice, "")
+				summaryDay1 := 0
 
-				response := make(map[string]interface{})
-				response["summary_circle_meet"] = circleMeet
-				response["summary_circles"] = circleVisit
-				response["summary_villagevisit"] = villageVisit
-				response["summary_beehive"] = beehive
-				response["summary_enroll"] = enrolled
-				response["summary_green"] = summaryGreen
-				response["summary_vyapar"] = summaryVyapar
-				response["data"] = data
-				response["code"] = 200
-				response["success"] = true
-				response["message"] = "Successfully"
-
-				js, err := json.Marshal(response)
-				fmt.Println(response)
-				if err != nil {
-					// handle error
+				summaryDay1 += day1Count
+				if day1Count > 0 {
+					actual := getActual(db, reqBody.StartDate, reqBody.EndDate, intSlice, "")
+					day2Turnout := float64(actual) / float64(day1Count)
+					day2 = int(day2Turnout * 100)
+				} else {
+					day2 = 0
 				}
-				w.Header().Set("Content-Type", "application/json")
-				w.WriteHeader(http.StatusOK)
-				w.Write(js)
-				return
+			}
+			json.NewEncoder(w).Encode(map[string]interface{}{"Target": getTarget(db, reqBody.StartDate, reqBody.EndDate, projectArray), "No Of Villages": getVillages(db, reqBody.StartDate, reqBody.EndDate, projectArray, ""), "Actual": getActual(db, reqBody.StartDate, reqBody.EndDate, projectArray, ""), "No Of Batches": getTrainingBatches(db, reqBody.StartDate, reqBody.EndDate, projectArray, ""), "No Of self shakthi survey": GetNoofGreenModuleCompleted(db), "2nd Day turnout %": day2, "funder": data})
+
+			if err := projectsList.Err(); err != nil {
+				log.Fatal(err)
 			}
 
 		} else if reqBody.RoleID == 13 {
@@ -3172,6 +3203,7 @@ func HandleFunc() {
 
 		} else if reqBody.RoleID == 5 {
 			var dateFilter string
+			var filter string
 			var isDateFilterApplied bool
 
 			if isDateFilterApplied {
@@ -3204,10 +3236,10 @@ func HandleFunc() {
 				log.Fatal(err)
 			}
 			var summaryTarget, summaryActuals, summaryDay1, summaryEnrolled, summaryVillages, summaryGreen, summaryVyapar int
-
+			var projectArray []int
 			for res.Next() {
 				var obj = make(map[string]interface{})
-				var projectArray []int
+
 				var id int
 				var name string
 				var startDate, endDate string
@@ -3269,46 +3301,7 @@ func HandleFunc() {
 				summaryVyapar += obj["vyapar"].(int)
 				data = append(data, obj)
 			}
-			response := make(map[string]interface{})
-
-			response["summary_target"] = summaryTarget
-			response["summary_women"] = summaryActuals
-			tbFilter := fmt.Sprintf(" and tp.user_id = %d", reqBody.EmpID)
-			intSlice := []int{}
-
-			// loop through each element in the []interface{} slice
-			for _, v := range summaryProjectsArray {
-				// check if the element is of type int
-				if i, ok := v.(int); ok {
-					// append the int value to the []int slice
-					intSlice = append(intSlice, i)
-				}
-			}
-			response["summary_villages"] = getSummaryOfVillagesNew(db, reqBody.StartDate, reqBody.EndDate, intSlice, tbFilter)
-			response["summary_actual"] = summaryActuals
-			var day2Turnout float64
-
-			if summaryDay1 > 0 {
-				day2Turnout = float64(summaryActuals) / float64(summaryDay1)
-				response["summary_day2"] = int(math.Round(day2Turnout * 100))
-			} else {
-				day2Turnout = 0
-				response["summary_day2"] = 0
-			}
-
-			response["summary_enrolled"] = summaryEnrolled
-			response["summary_green"] = summaryGreen
-			response["summary_vyapar"] = summaryVyapar
-			response["data"] = data
-			response["code"] = 200
-			response["success"] = true
-			response["message"] = "Successfully"
-
-			// jsonResponse, err := json.Marshal(response)
-			json.NewEncoder(w).Encode(map[string]interface{}{"summary": response})
-			if err != nil {
-				log.Fatal(err)
-			}
+			json.NewEncoder(w).Encode(map[string]interface{}{"No Of Villages": getVillages(db, reqBody.StartDate, reqBody.EndDate, projectArray, ""), "No Of gelathi Enrolled Vypar": getGelathi(db, reqBody.StartDate, reqBody.EndDate, projectArray, "", "", ""), "No Of Sporthi survey": GetNoOfSporthiSurvey(db, reqBody.StartDate, reqBody.EndDate, ""), "No Of Sporthi module completed": GetNoofSporthiModuleCompleted(db), "No of beehives": getGFData(db, filter, 0, 0), "data": data})
 
 			// return map[string]interface{}{"data": data, "summary": summary}
 
@@ -3316,6 +3309,7 @@ func HandleFunc() {
 			participantFilter := ""
 			var filter, filterG, filterV string
 			var isDateFilterApplied bool
+			var projectArray []int
 
 			if reqBody.ProjectID > 0 {
 				filter = fmt.Sprintf(" and tp.project_id = %d", reqBody.ProjectID)
@@ -3331,34 +3325,57 @@ func HandleFunc() {
 				}
 			}
 
-			circleMeet := getGFData(db, filter, 1, reqBody.EmpID)
-			villageVisit := getGFData(db, filter, 2, reqBody.EmpID)
-			beehive := getGFData(db, filter, 3, reqBody.EmpID)
-			enrolled, _ := getGfEnrolled(db, filter, reqBody.EmpID)
-			circleVisit := getGFCircle(db, filter, reqBody.EmpID)
+			// circleMeet := getGFData(db, filter, 1, reqBody.EmpID)
+			// villageVisit := getGFData(db, filter, 2, reqBody.EmpID)
+			// beehive := getGFData(db, filter, 3, reqBody.EmpID)
+			// enrolled, _ := getGfEnrolled(db, filter, reqBody.EmpID)
+			// circleVisit := getGFCircle(db, filter, reqBody.EmpID)
 
 			data := []map[string]interface{}{}
-			getProjs := fmt.Sprintf("Select project_id as id,p.projectName as name from tbl_poa tp inner join project p on p.id = tp.project_id where tp.user_id = %d %s GROUP by tp.project_id UNION SELECT tp.project_id as id,p.projectName as name from training_participants tp inner join project p on tp.project_id = p.id where enroll = 1 and gelathi_id = %d %s", reqBody.EmpID, filter, reqBody.EmpID, filter)
+			getProjs := "SELECT project_id as id, p.projectName as name FROM tbl_poa tp " +
+				"INNER JOIN project p ON p.id = tp.project_id " +
+				"WHERE tp.user_id = " + strconv.Itoa(reqBody.EmpID) + " " + filter + " GROUP BY tp.project_id " +
+				"UNION " +
+				"SELECT tp.project_id as id, p.projectName as name FROM training_participants tp " +
+				"INNER JOIN project p ON tp.project_id = p.id " +
+				"WHERE enroll = 1 AND gelathi_id = " + strconv.Itoa(reqBody.EmpID) + " " + filter
 
 			if reqBody.ProjectID > 0 {
-				getProjs = fmt.Sprintf("Select project_id as id,p.projectName as name from tbl_poa tp inner join project p on p.id = tp.project_id where tp.project_id = %d and tp.user_id = %d GROUP by tp.project_id UNION SELECT tp.project_id as id,p.projectName as name from training_participants tp inner join project p on tp.project_id = p.id where enroll = 1 and gelathi_id = %d and tp.project_id = %d", reqBody.ProjectID, reqBody.EmpID, reqBody.EmpID, reqBody.ProjectID)
+				getProjs = "SELECT project_id as id, p.projectName as name FROM tbl_poa tp " +
+					"INNER JOIN project p ON p.id = tp.project_id " +
+					"WHERE tp.project_id = " + strconv.Itoa(reqBody.ProjectID) + " AND tp.user_id = " + strconv.Itoa(reqBody.EmpID) + " GROUP BY tp.project_id " +
+					"UNION " +
+					"SELECT tp.project_id as id, p.projectName as name FROM training_participants tp " +
+					"INNER JOIN project p ON tp.project_id = p.id " +
+					"WHERE enroll = 1 AND gelathi_id = " + strconv.Itoa(reqBody.EmpID) + " AND tp.project_id = " + strconv.Itoa(reqBody.ProjectID)
 			}
+
+			// getProjs := fmt.Sprintf("Select project_id as id,p.projectName as name from tbl_poa tp inner join project p on p.id = tp.project_id where tp.user_id = %d %s GROUP by tp.project_id UNION SELECT tp.project_id as id,p.projectName as name from training_participants tp inner join project p on tp.project_id = p.id where enroll = 1 and gelathi_id = %d %s", reqBody.EmpID, filter, reqBody.EmpID, filter)
+
+			// if reqBody.ProjectID > 0 {
+			// 	getProjs = fmt.Sprintf("Select project_id as id,p.projectName as name from tbl_poa tp inner join project p on p.id = tp.project_id where tp.project_id = %d and tp.user_id = %d GROUP by tp.project_id UNION SELECT tp.project_id as id,p.projectName as name from training_participants tp inner join project p on tp.project_id = p.id where enroll = 1 and gelathi_id = %d and tp.project_id = %d", reqBody.ProjectID, reqBody.EmpID,  reqBody.ProjectID)
+			// }
+			// Fetch projects list
 			projectsList, err := db.Query(getProjs)
 			if err != nil {
-				fmt.Println(err)
+				log.Fatal(err)
 			}
+			defer projectsList.Close()
+			summaryGreen := 0
+			summaryVyapar := 0
+
+			// Loop through each project and fetch required data
 			for projectsList.Next() {
+				var obj = make(map[string]interface{})
 				var id int
 				var name string
+
 				err := projectsList.Scan(&id, &name)
 				if err != nil {
-					panic(err)
+					log.Fatal(err)
 				}
 
-				obj := make(map[string]interface{})
 				obj["name"] = name
-				// var villageProjvisit *int
-
 				prjFilter := fmt.Sprintf(" and p.id = %d", id)
 				circleProjMeet := getGFData(db, prjFilter, 1, reqBody.EmpID)
 				obj["circle_meet"] = circleProjMeet
@@ -3368,34 +3385,29 @@ func HandleFunc() {
 				beehiveProj := getGFData(db, prjFilter, 3, reqBody.EmpID)
 				obj["beehive"] = beehiveProj
 				projEnrolled, _ := getGfEnrolled(db, prjFilter, reqBody.EmpID)
-				bool1, _ := strconv.ParseBool(participantFilter)
+				b, err := strconv.ParseBool(participantFilter)
 
-				if bool1 {
+				if b {
 					projEnrolled = getParticipantFilterGfEnrolled(db, prjFilter, reqBody.EmpID, reqBody.StartDate, reqBody.EndDate)
 				}
 
-				obj = make(map[string]interface{})
 				obj["enroll"] = projEnrolled
-
-				var projectArray []string
-				str := strconv.Itoa(reqBody.EmpID)
-				empIDs := strings.Split(str, ",")
-				empIDsStr := "'" + strings.Join(empIDs, "','") + "'"
-				projectResult, err := db.Query(fmt.Sprintf("SELECT GROUP_CONCAT(DISTINCT prj.id) as ids from project_emps em_pr left join project prj on em_pr.project_id = prj.id where emp_id IN (%s)", empIDsStr))
-
-				// projectResult, err := db.Query(fmt.Sprintf("SELECT GROUP_CONCAT(DISTINCT prj.id) as ids from project_emps em_pr left join project prj on em_pr.project_id = prj.id where emp_id IN (%s)", reqBody.EmpID))
+				projectResult, err := db.Query(fmt.Sprintf("SELECT GROUP_CONCAT(DISTINCT prj.id) as ids from project_emps em_pr left join project prj on em_pr.project_id = prj.id where emp_id IN (%d)", reqBody.EmpID))
 				if err != nil {
-					// handle error
+					log.Fatal(err)
 				}
 				defer projectResult.Close()
+
+				var projectArray []string
 				for projectResult.Next() {
-					var prjIDs string
-					err := projectResult.Scan(&prjIDs)
+					var ids string
+					err := projectResult.Scan(&ids)
 					if err != nil {
-						// handle error
+						log.Fatal(err)
 					}
-					projectArray = append(projectArray, prjIDs)
+					projectArray = strings.Split(ids, ",")
 				}
+
 				intSlice := make([]int, len(projectArray))
 
 				for i, str := range projectArray {
@@ -3408,37 +3420,14 @@ func HandleFunc() {
 
 				obj["greenMotivators"] = greenMotivators(db, reqBody.StartDate, reqBody.EndDate, intSlice, "", filterG)
 				obj["vyapar"] = Vyapar(db, reqBody.StartDate, reqBody.EndDate, intSlice, "", filterV)
-				summaryGreen := 0
-				summaryVyapar := 0
-
 				summaryGreen += obj["greenMotivators"].(int)
 				summaryVyapar += obj["vyapar"].(int)
-
 				data = append(data, obj)
-				fmt.Println(data)
+			}
+			json.NewEncoder(w).Encode(map[string]interface{}{"No Of Villages": getVillages(db, reqBody.StartDate, reqBody.EndDate, projectArray, ""), "No Of gelathi Enrolled Vypar": getGelathi(db, reqBody.StartDate, reqBody.EndDate, projectArray, "", "", ""), "No Of Sporthi survey": GetNoOfSporthiSurvey(db, reqBody.StartDate, reqBody.EndDate, ""), "No Of Sporthi module completed": GetNoofSporthiModuleCompleted(db), "No of beehives": getGFData(db, filter, 0, 0), "data": data})
 
-				response := make(map[string]interface{})
-				response["summary_circle_meet"] = circleMeet
-				response["summary_circles"] = circleVisit
-				response["summary_villagevisit"] = villageVisit
-				response["summary_beehive"] = beehive
-				response["summary_enroll"] = enrolled
-				response["summary_green"] = summaryGreen
-				response["summary_vyapar"] = summaryVyapar
-				response["data"] = data
-				response["code"] = 200
-				response["success"] = true
-				response["message"] = "Successfully"
-
-				js, err := json.Marshal(response)
-				fmt.Println(response)
-				if err != nil {
-					// handle error
-				}
-				w.Header().Set("Content-Type", "application/json")
-				w.WriteHeader(http.StatusOK)
-				w.Write(js)
-				return
+			if err := projectsList.Err(); err != nil {
+				log.Fatal(err)
 			}
 
 		} else if reqBody.RoleID == 13 {
@@ -3502,7 +3491,7 @@ func HandleFunc() {
 				var name string
 				err := projectsList.Scan(&id, &name)
 				if err != nil {
-					// handle error
+					// handle
 				}
 
 				var prjFilter string
